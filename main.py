@@ -1,4 +1,6 @@
+import datetime
 import io
+from typing import Optional
 import uuid
 import cv2
 import uvicorn
@@ -8,7 +10,7 @@ from http.client import BAD_REQUEST, CREATED, OK
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from PIL import Image
 from insightface.app import FaceAnalysis
-from fastapi import Depends, FastAPI, File, Form, Query, Request, UploadFile, WebSocket
+from fastapi import Cookie, Depends, FastAPI, File, Form, Query, Request, UploadFile, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -17,7 +19,7 @@ from utils import BytesIoImageOpen, createBytesIo
 
 models.Base.metadata.create_all(bind=engine)
 
-module = FaceAnalysis(allowed_modules=['detection', 'recognition'],providers=['CPUExecutionProvider'])
+module = FaceAnalysis(allowed_modules=['detection', 'recognition'],providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
 module.prepare(ctx_id=0, det_size=(640, 640))
 
 app = FastAPI()
@@ -36,7 +38,10 @@ def get_db():
 
 class Main:
     @app.get('/')
-    def index(request: Request):
+    def index(request: Request, ads: Optional[str] = Cookie(None)):
+
+        if ads is not None:
+            return RedirectResponse(f'/main?q={ads}')
         
         return templates.TemplateResponse('index.html', {'request': request})
         
@@ -47,7 +52,9 @@ class Main:
         if query is None:
             return {'error': 'error', 'statusCode': BAD_REQUEST}
         
-        return templates.TemplateResponse('main.html', {'request': request})
+        response = templates.TemplateResponse('main.html', {'request': request})
+        response.set_cookie('ads', q, 43200, httponly=True)
+        return response
     
     @app.get('/video', response_class=HTMLResponse)
     async def videoLogin(request: Request):
@@ -62,7 +69,7 @@ class Main:
         global feats
         
         if name is None or phone is None or file is None:
-            return JSONResponse(status_code=400, content={'error': '입력 값이 정상적이지 않습니다.'})
+            return JSONResponse(status_code=BAD_REQUEST, content={'error': '입력 값이 정상적이지 않습니다.'})
         
         content_type = file.content_type
 
@@ -85,7 +92,6 @@ class Main:
         
         db.add(employee)
         db.commit()
-        db.refresh(employee)
         
         global feats
         bytes_io_list = createBytesIo([read_file])
@@ -99,6 +105,22 @@ class Main:
             print(item)
         
         return RedirectResponse("/", status_code=302)
+    
+    @app.get('/leave')
+    async def leave(request: Request, ads: Optional[str] = Cookie(None)):
+
+        query = db.query(models.Attendance).filter(models.Attendance.id == uuid.UUID(ads)).filter(models.Attendance.end == None).first()
+        
+        if query is None:
+            return {'error': 'error', 'statusCode': BAD_REQUEST}
+        
+        query.end = datetime.datetime.now()
+        db.commit()
+        
+        response = templates.TemplateResponse('index.html', {'request': request})
+        response.delete_cookie('ads')
+        
+        return response
         
     @app.websocket('/ws')
     async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):

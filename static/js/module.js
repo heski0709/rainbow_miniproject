@@ -66,7 +66,8 @@ video.addEventListener("play", (e) => {
                 video.load()
                 console.log('비디오 재시작');
             }, 2000)
-            // location.replace(result.url);
+            
+            location.replace(result.url);
         });
     };
 });
