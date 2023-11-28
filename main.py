@@ -1,14 +1,14 @@
-from http.client import BAD_REQUEST, OK
 import io
-from json import JSONEncoder
 import uuid
 import cv2
 import uvicorn
 import models
 import numpy as np
+from http.client import BAD_REQUEST, CREATED, OK
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from PIL import Image
 from insightface.app import FaceAnalysis
-from fastapi import Depends, FastAPI, Query, Request, Response, UploadFile, WebSocket
+from fastapi import Depends, FastAPI, File, Form, Query, Request, UploadFile, WebSocket
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -34,91 +34,110 @@ def get_db():
         # 마지막에 무조건 닫음
         db.close()
 
-@app.get('/')
-def read_item(request: Request):
-    
-    return templates.TemplateResponse('index.html', {'request': request})
-
-@app.post('/image')
-async def facialAnalysis(file: UploadFile, db: Session = Depends(get_db)):
-    global feats
-    
-    content = await file.read()
-    buffer = io.BytesIO(content)
-    image = Image.open(buffer)
-    cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-    face = module.get(cv_image)
-    
-    if (len(face) > 1 or len(face) == 0):
-        return Response(
-            JSONEncoder().encode({'statusCode': BAD_REQUEST}), 
-            status_code=BAD_REQUEST, media_type='application/json')
-    
-    sims = np.dot(feats, np.array(face[0].normed_embedding, dtype=np.float32))
-    
-    for sim in sims:
-        if sim > 0.7:
-            print('동일인 입니다.')
-            attendance = models.Attendance(id = uuid.uuid4())
-            db.add(attendance)
-            db.commit()
-            
-            return {'result': 'success', 
-                    'start': attendance.start, 
-                    'statusCode': OK,
-                    'url': f'/main?q={attendance.id}'}
+class Main:
+    @app.get('/')
+    def index(request: Request):
         
-    return Response(
-                JSONEncoder().encode({'statusCode': BAD_REQUEST}), 
-                status_code=BAD_REQUEST, media_type='application/json')
-
-@app.websocket('/ws')
-async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
-    await websocket.accept()
-
-    try:
-        while True:
-            data = await websocket.receive_bytes()
-            buffer = io.BytesIO(data)
-            image = Image.open(buffer)
-            cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-            face = module.get(cv_image)
-            # print(face)
-
-            # # 데이터 처리 로직
-            if (len(face) > 1 or len(face) == 0):
-                continue
-            
-            sims = np.dot(feats, np.array(face[0].normed_embedding, dtype=np.float32))
-            
-            for sim in sims:
-                if sim > 0.7:
-                    print('동일인 입니다.')
-                    attendance = models.Attendance(id = uuid.uuid4())
-                    db.add(attendance)
-                    db.commit()
-            
-                    await websocket.send_json(data={
-                            'result': 'success', 
-                            'start': attendance.start.strftime("%Y-%m-%d %H:%M:%S"), 
-                            'statusCode': OK,
-                            'url': f'/main?q={attendance.id}'
-                    })
-    except Exception as e:
-        print(f"WebSocket Error: {e}")
-    # finally:
-    #     # 연결 종료 시 처리
-    #     await websocket.close()
-
-@app.get('/main')
-async def main(request: Request, q: uuid.UUID = Query(None), db: Session = Depends(get_db)):
-    query = db.query(models.Attendance).filter(models.Attendance.id == q).first()
+        return templates.TemplateResponse('index.html', {'request': request})
+        
+    @app.get('/main')
+    async def main(request: Request, q: uuid.UUID = Query(None), db: Session = Depends(get_db)):
+        query = db.query(models.Attendance).filter(models.Attendance.id == q).first()
+        
+        if query is None:
+            return {'error': 'error', 'statusCode': BAD_REQUEST}
+        
+        return templates.TemplateResponse('main.html', {'request': request})
     
-    if query is None:
-        return {'error': 'error', 'statusCode': BAD_REQUEST}
+    @app.get('/video', response_class=HTMLResponse)
+    async def videoLogin(request: Request):
+        return templates.TemplateResponse('video.html', {'request': request})
     
-    return templates.TemplateResponse('main.html', {'request': request})
-    
+    @app.get('/register', response_class=HTMLResponse)
+    async def register(request: Request):
+         return templates.TemplateResponse('register.html', {'request': request})
+        
+    @app.post('/register', status_code=CREATED)
+    async def register(file: UploadFile = File(None), name: str = Form(...), phone: str = Form(...), db: Session = Depends(get_db)):
+        global feats
+        
+        if name is None or phone is None or file is None:
+            return JSONResponse(status_code=400, content={'error': '입력 값이 정상적이지 않습니다.'})
+        
+        content_type = file.content_type
+
+        if content_type == 'image/png':
+            contents = await file.read()
+            nparr = np.frombuffer(contents, np.uint8)
+            
+            # OpenCV를 사용하여 이미지 읽기
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+            # JPEG로 변환 (quality를 조정하여 압축 수준 설정 가능)
+            _, encoded_image = cv2.imencode('.jpg', image, [cv2.IMWRITE_JPEG_QUALITY, 90])
+
+            read_file = encoded_image.tobytes()
+
+        else:    
+            read_file = await file.read()
+        
+        employee = models.Employee(name=name, phone=phone, img_binary=read_file)
+        
+        db.add(employee)
+        db.commit()
+        db.refresh(employee)
+        
+        global feats
+        bytes_io_list = createBytesIo([read_file])
+        open_images = BytesIoImageOpen(bytes_io_list)
+        cv_images = [cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR) for image in open_images]
+        faces = [module.get(image) for image in cv_images]
+        feat = [face[0].normed_embedding for face in faces]
+        feats += feat
+        
+        for item in feats:
+            print(item)
+        
+        return RedirectResponse("/", status_code=302)
+        
+    @app.websocket('/ws')
+    async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
+        global feats
+        await websocket.accept()
+
+        try:
+            while True:
+                data = await websocket.receive_bytes()
+                
+                buffer = io.BytesIO(data)
+                image = Image.open(buffer)
+                cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                face = module.get(cv_image)
+
+                print(len(face))
+                # # 데이터 처리 로직
+                if (len(face) > 1 or len(face) == 0):
+                    continue
+                
+                sims = np.dot(feats, np.array(face[0].normed_embedding, dtype=np.float32))
+                
+                for index, sim in enumerate(sims):
+                    print(sim)
+                    if sim > 0.65:
+                        employee = db.query(models.Employee)
+                        attendance = models.Attendance(id = uuid.uuid4(), employee_id=employee[index].id)
+                        db.add(attendance)
+                        db.commit()
+                
+                        await websocket.send_json(data={
+                                'data': f'{employee[index].name}님 확인되셨습니다.', 
+                                'start': attendance.start.strftime("%Y-%m-%d %H:%M:%S"), 
+                                'statusCode': OK,
+                                'url': f'/main?q={attendance.id}'
+                        })
+        except Exception as e:
+            print(f"WebSocket Error: {e}")
+
 if __name__ == "__main__":
     db = SessionLocal()
     cols = db.query(models.Employee)

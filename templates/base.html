@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.all.min.js"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/sweetalert2@11.10.0/dist/sweetalert2.min.css"
+      rel="stylesheet"
+    />
+    
+    <link
+      href="{{ url_for('static', path='css/common.css')}}"
+      rel="stylesheet"
+    />
+    <title>출결관리 프로그램</title>
+  </head>
+
+  <body>
+    <div id="header">
+      <h1>얼굴인식 출결관리</h1>
+    </div>
+    {% block content %}
+    {% endblock content %}
+  </body>
+</html>

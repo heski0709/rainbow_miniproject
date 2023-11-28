@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import VARCHAR, Column, DateTime, Integer, LargeBinary, String, Uuid
+from sqlalchemy import BLOB, VARCHAR, Column, DateTime, ForeignKey, Integer, LargeBinary, String, Uuid
 
 from database import Base
 
@@ -7,6 +7,7 @@ from database import Base
 class Attendance(Base):
     __tablename__ = 'attendance'
     id = Column(Uuid, primary_key=True, autoincrement=None)
+    employee_id = Column(ForeignKey("employee.id"))
     start = Column(DateTime, default=datetime.now)
     end = Column(DateTime, default=None)
 

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<div id="container">
+    <div id="webcam-container">
+        <video id='videoElement'></video>
+    </div>
+    <button type="button" onclick="location.href='/'">돌아가기</button>
+</div>
+<script defer src="{{ url_for('static', path='js/module.js')}}"></script>
+{% endblock content %}

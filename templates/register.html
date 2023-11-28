@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div id="container">
+    <form action="/register" enctype="multipart/form-data" method="post">
+        <label for="name">이름 :</label>
+        <input type="text" id="name" name="name" required>
+        <label for="phone">핸드폰 번호 : </label>
+        <input type="tel" id="phone" name="phone" required>
+        <label for="file">증명사진 :</label>
+        <input type="file" id="file" name="file" required>
+        <button type="submit">가입</button>
+        <button type="button" onclick="location.href='/'">돌아가기</button>
+    </form>
+</div>
+<script>
+    const phone = document.querySelector('#phone')
+
+    phone.addEventListener('input', function(e) {
+        let formatted = e.target.value
+                        .replace(/\D/g, '') // 숫자 이외의 문자 모두 제거
+                        .slice(0, 11)
+                        .replace(/(\d{3})(\d{3,4})(\d{4})/, '$1-$2-$3'); // 원하는 형식으로 변경
+
+        e.target.value = formatted;
+    });
+</script>
+{% endblock content %}
