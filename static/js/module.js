@@ -1,6 +1,8 @@
-var root = document.getElementById("root");
-var video = document.createElement("video");
+const socket = new WebSocket("ws://localhost:8000/ws"); // 서버 주소에 실제 서버 주소를 입력해야 합니다.
+const webcam = document.getElementById("webcam-container");
+const video = document.createElement("video");
 let intervalId;
+video.id = 'videoElement'
 video.autoplay = true;
 video.width = 640;
 video.height = 480;
@@ -16,90 +18,6 @@ if (navigator.mediaDevices.getUserMedia) {
     });
 }
 
-// video.addEventListener("play", (e) => {
-//   const canvas = document.createElement("canvas");
-//   canvas.width = e.target.width;
-//   canvas.height = e.target.height;
-//   const context = canvas.getContext("2d");
-
-//   intervalId = setInterval(() => {
-//     context.drawImage(e.target, 0, 0);
-//     canvas.toBlob((blob) => {
-//       //캔버스의 이미지를 파일 객체로 만드는 과정
-//       let file = new File([blob], `${self.crypto.randomUUID()}.jpg`, {
-//         type: "image/jpeg",
-//       });
-//       const formData = new FormData();
-//       formData.append("file", file);
-//       fetch("/image", {
-//         method: "post",
-//         body: formData,
-//       })
-//         .then((res) => res.json())
-//         .then((data) => {
-//           if (data.statusCode !== 200) {
-//             return;
-//           }
-
-//           clearInterval(intervalId)
-
-//           Swal.fire({
-//             text: "인증 성공",
-//             icon: "success",
-//           }).then(() => {
-//             location.replace(data.url);
-//           });
-//         })
-//         .catch((err) => {
-//           console.log(err);
-//         });
-//     }, "image/jpeg");
-//   }, 100);
-// });
-// var button = document.createElement("button");
-// button.textContent = "사진 찍기";
-// button.addEventListener("click", () => {
-//   const canvas = document.createElement("canvas");
-//   canvas.width = video.width;
-//   canvas.height = video.height;
-
-//   const context = canvas.getContext("2d");
-//   context.drawImage(video, 0, 0);
-
-//   const req = canvas.toBlob((blob) => {
-//     //캔버스의 이미지를 파일 객체로 만드는 과정
-//     let file = new File([blob], `${self.crypto.randomUUID()}.jpg`, {
-//       type: "image/jpeg",
-//     });
-
-//     const formData = new FormData();
-//     formData.append("file", file);
-
-//     fetch("/image", {
-//       method: "post",
-//       body: formData,
-//     })
-//       .then((res) => res.json())
-//       .then((data) => {
-//         if (data.statusCode !== 200) {
-
-//           return;
-//         }
-
-//         Swal.fire({
-//           text: "인증 성공",
-//           icon: "success",
-//         }).then(() => {
-//           location.replace(data.url);
-//         });
-//       })
-//       .catch((err) => {
-//         console.log(err);
-//       });
-//   }, "image/jpeg");
-// });
-
-const socket = new WebSocket("ws://localhost:8000/ws"); // 서버 주소에 실제 서버 주소를 입력해야 합니다.
 
 video.addEventListener("play", (e) => {
   const canvas = document.createElement("canvas");
@@ -144,5 +62,5 @@ socket.onmessage = (event) => {
   });
 };
 
-root.appendChild(video);
+webcam.appendChild(video);
 // root.appendChild(button);

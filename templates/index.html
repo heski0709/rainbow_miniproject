@@ -9,12 +9,30 @@
       rel="stylesheet"
     />
     <script defer src="{{ url_for('static', path='js/module.js')}}"></script>
-    <title>Document</title>
+    <link
+      href="{{ url_for('static', path='css/common.css')}}"
+      rel="stylesheet"
+    />
+    <title>출결관리 프로그램</title>
   </head>
 
   <body>
-    <div id="root">
+    <div id="header">
+      <h1>얼굴인식 출결관리</h1>
+  </div>
+    <div id="container">
+      <form>
+          <label for="id">ID:</label>
+          <input type="text" id="id" name="id">
+          <label for="password">Password:</label>
+          <input type="password" id="password" name="password">
+          <button onclick="takeSnapshot()">로그인</button><br>
+          <input type="submit" value="회원가입">
+      </form>
 
-    </div>
+      <div id="webcam-container">
+      </div>
+  </div>
+
   </body>
 </html>
