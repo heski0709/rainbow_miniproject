@@ -21,8 +21,6 @@ video.addEventListener("play", (e) => {
     const canvas = document.createElement("canvas");
     canvas.width = video.clientWidth;
     canvas.height = video.clientHeight;
-    console.log(canvas.width)
-    console.log(canvas.height)
     const context = canvas.getContext("2d");
     const FRAME_RATE = 30; // 프레임 레이트 설정
     const PER_SECOND = 1000
@@ -44,11 +42,15 @@ video.addEventListener("play", (e) => {
 
     socket.onclose = () => {
         console.log("WebSocket 연결 종료");
-        clearInterval(intervalId);
     };
 
     socket.onerror = (error) => {
         console.error("WebSocket 오류 발생:", error);
+
+        Swal.fire({
+            text: '웹소켓 연결 오류가 발생했습니다.',
+            icon: 'error',
+        });
     };
 
     socket.onmessage = (event) => {
@@ -62,10 +64,6 @@ video.addEventListener("play", (e) => {
             icon: "success",
         }).then(() => {
             video.pause()
-            setTimeout(() => {
-                video.load()
-                console.log('비디오 재시작');
-            }, 2000)
             
             location.replace(result.url);
         });
