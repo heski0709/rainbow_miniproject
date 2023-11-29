@@ -1,7 +1,5 @@
-from contextlib import contextmanager
 import datetime
 import io
-from threading import Lock
 import uuid
 import cv2
 import uvicorn
@@ -248,10 +246,14 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             
             for index, sim in enumerate(sims):
                 if sim > 0.55:
-                    employee = db.query(models.Employee)
-                    attendance = models.Attendance(id = uuid.uuid4(), employee_id=employee[index].id)
-                    db.add(attendance)
-                    db.commit()
+                    employee = db.query(models.Employee).all()
+                    attendance = db.query(models.Attendance).filter(models.Attendance.employee_id == employee[index].id).filter(models.Attendance.end == None).first()
+
+                    print(attendance == None)
+                    if attendance == None:
+                        attendance = models.Attendance(id = uuid.uuid4(), employee_id=employee[index].id)
+                        db.add(attendance)
+                        db.commit()
             
                     await websocket.send_json({
                             'data': f'{employee[index].name}님 확인되셨습니다.', 

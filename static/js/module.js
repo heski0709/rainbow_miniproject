@@ -19,10 +19,9 @@ if (navigator.mediaDevices.getUserMedia) {
 video.addEventListener("play", (e) => {
     socket = new WebSocket("ws://localhost:8000/ws");  // 서버 주소에 실제 서버 주소를 입력해야 합니다.
     const canvas = document.createElement("canvas");
-    canvas.width = video.clientWidth;
-    canvas.height = video.clientHeight;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
     const context = canvas.getContext("2d");
-    const FRAME_RATE = 30; // 프레임 레이트 설정
     const PER_SECOND = 1000
 
     // 웹소켓 이벤트 핸들러
@@ -37,7 +36,7 @@ video.addEventListener("play", (e) => {
 
                 socket.send(file);
             }, "image/jpeg");
-        }, PER_SECOND);
+        }, PER_SECOND/ 2);
     };
 
     socket.onclose = () => {
