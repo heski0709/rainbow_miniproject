@@ -6,14 +6,14 @@ from database import Base
 
 class Attendance(Base):
     __tablename__ = 'attendance'
-    id = Column(Uuid, primary_key=True, autoincrement=None)
+    id = Column(Uuid, primary_key=True, autoincrement=None, index=True)
     employee_id = Column(Integer, ForeignKey("employee.id"))
     start = Column(DateTime, default=datetime.now)
     end = Column(DateTime, default=None)
 
 class Employee(Base):
     __tablename__ = 'employee'
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     name = Column(VARCHAR)
     phone = Column(VARCHAR)
     img_binary = Column(LargeBinary)
