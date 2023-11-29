@@ -7,7 +7,7 @@ from database import Base
 class Attendance(Base):
     __tablename__ = 'attendance'
     id = Column(Uuid, primary_key=True, autoincrement=None)
-    employee_id = Column(ForeignKey("employee.id"))
+    employee_id = Column(Integer, ForeignKey("employee.id"))
     start = Column(DateTime, default=datetime.now)
     end = Column(DateTime, default=None)
 

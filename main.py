@@ -247,14 +247,13 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             sims = np.dot(feats, np.array(face[0].normed_embedding, dtype=np.float32))
             
             for index, sim in enumerate(sims):
-                print(sim)
                 if sim > 0.55:
                     employee = db.query(models.Employee)
                     attendance = models.Attendance(id = uuid.uuid4(), employee_id=employee[index].id)
                     db.add(attendance)
                     db.commit()
             
-                    await websocket.send_json(data={
+                    await websocket.send_json({
                             'data': f'{employee[index].name}님 확인되셨습니다.', 
                             'start': attendance.start.strftime("%Y-%m-%d %H:%M:%S"), 
                             'statusCode': OK,
