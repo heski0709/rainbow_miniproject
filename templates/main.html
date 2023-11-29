@@ -1,8 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
+{% if query.end == None %}
 <div id="container">
     <form action="/leave">
         <button>퇴근하기</button>
     </form>
 </div>
+{% else %}
+<script>
+    Swal.fire({
+        title: '이미 퇴근하셨습니다',
+        icon: 'error'
+    })
+</script>
+{% endif %}
 {% endblock content %}

@@ -1,10 +1,11 @@
-import datetime
 import io
 import uuid
 import cv2
 import uvicorn
-import models
 import numpy as np
+from datetime import datetime, timedelta, timezone
+from sqlalchemy import func
+from models import Attendance, Employee, Base
 from typing import Optional
 from http.client import BAD_REQUEST, CREATED, OK
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
@@ -17,7 +18,7 @@ from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from utils import BytesIoImageOpen, createBytesIo
 
-models.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 module = FaceAnalysis(allowed_modules=['detection', 'recognition'],providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
 module.prepare(ctx_id=0, det_size=(640, 640))
@@ -65,7 +66,7 @@ def init(db: Session = next(get_db())):
         None
     """
     global feats
-    cols = db.query(models.Employee)
+    cols = db.query(Employee)
     img_binarys = [col.img_binary for col in cols]
     feats = get_feats(img_binarys)
 
@@ -101,13 +102,15 @@ async def main(request: Request, q: uuid.UUID = Query(None), db: Session = Depen
         Union[Dict[str, Union[str, int]], TemplateResponse]: 에러 또는 템플릿 응답
     """
     
-    query = db.query(models.Attendance).filter(models.Attendance.id == q).first()
+    query = db.query(Attendance).filter(Attendance.id == q).first()
     
     if query is None:
         return {'error': 'error', 'statusCode': BAD_REQUEST}
     
-    response = templates.TemplateResponse('main.html', {'request': request})
-    response.set_cookie('ads', q, 43200, httponly=True)
+    # 출근한 시간에서 하루가 지나면 만료되도록 설정
+    expire = query.start + timedelta(days=1)
+    response = templates.TemplateResponse('main.html', {'request': request, 'query': query})
+    response.set_cookie(key='ads', value=q, expires=expire.astimezone(timezone.utc), httponly=True)
     return response
 
 @app.get('/video', response_class=HTMLResponse, summary="얼굴인식 로그인 페이지")
@@ -173,7 +176,7 @@ async def register(file: UploadFile = File(None), name: str = Form(...), phone: 
     else:    
         read_file = await file.read()
     
-    employee = models.Employee(name=name, phone=phone, img_binary=read_file)
+    employee = Employee(name=name, phone=phone, img_binary=read_file)
     
     db.add(employee)
     db.commit()
@@ -201,17 +204,16 @@ async def leave(request: Request, ads: Optional[str] = Cookie(None), db: Session
     Returns:
         Union[Dict[str, Union[str, int]], TemplateResponse]: 에러 또는 템플릿 응답
     """
-    query = db.query(models.Attendance).filter(models.Attendance.id == uuid.UUID(ads)).filter(models.Attendance.end == None).first()
+    query = db.query(Attendance).filter(Attendance.id == uuid.UUID(ads)).filter(Attendance.end == None).first()
     
     if query is None:
         return {'error': 'error', 'statusCode': BAD_REQUEST}
     
-    query.end = datetime.datetime.now()
+    query.end = datetime.now()
     db.commit()
     
     response = templates.TemplateResponse('index.html', {'request': request})
     response.delete_cookie('ads')
-    
     return response
     
 @app.websocket('/ws', name="웹소켓 연결")
@@ -227,7 +229,7 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
         None
     """
     await websocket.accept()
-
+    today = datetime.now().date()
     try:
         while True:
             data = await websocket.receive_bytes()
@@ -246,12 +248,11 @@ async def websocket_endpoint(websocket: WebSocket, db: Session = Depends(get_db)
             
             for index, sim in enumerate(sims):
                 if sim > 0.55:
-                    employee = db.query(models.Employee).all()
-                    attendance = db.query(models.Attendance).filter(models.Attendance.employee_id == employee[index].id).filter(models.Attendance.end == None).first()
+                    employee = db.query(Employee).all()
+                    attendance = db.query(Attendance).filter(Attendance.employee_id == employee[index].id).filter(func.date(Attendance.start) == today).first()
 
-                    print(attendance == None)
                     if attendance == None:
-                        attendance = models.Attendance(id = uuid.uuid4(), employee_id=employee[index].id)
+                        attendance = Attendance(id = uuid.uuid4(), employee_id=employee[index].id)
                         db.add(attendance)
                         db.commit()
             
