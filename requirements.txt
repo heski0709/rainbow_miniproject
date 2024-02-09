@@ -10,7 +10,7 @@ contourpy==1.2.0
 cycler==0.12.1
 Cython==3.0.6
 easydict==1.11
-fastapi==0.104.1
+fastapi==0.109.1
 flatbuffers==23.5.26
 fonttools==4.45.1
 greenlet==3.0.1
